@@ -9,9 +9,15 @@ unit RscLists;
 (***)  interface  (***)
 
 uses
-  SysUtils, Math,
-  UtilsB2, Crypto, DataLib, Files,
-  Stores, Legacy;
+  Math,
+  SysUtils,
+
+  Crypto,
+  DataLib,
+  Files,
+  UtilsB2, Legacy,
+
+  Stores;
 
 type
   TResource = class

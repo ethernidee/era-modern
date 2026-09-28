@@ -1,7 +1,7 @@
 unit Legacy;
 {
-DESCRIPTION: 
-AUTHOR:      
+DESCRIPTION:
+AUTHOR:
 }
 
 interface
@@ -9,6 +9,9 @@ interface
 uses Windows, SysUtils, AnsiStrings; {$WARN SYMBOL_PLATFORM OFF}
 
 type
+  {$POINTERMATH ON}
+  pbyte   = ^System.byte;
+  {$POINTERMATH OFF}
   myChar  = System.AnsiChar;
   myWChar = System.WideChar;
   myPChar = System.PAnsiChar;

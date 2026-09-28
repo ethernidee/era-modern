@@ -479,7 +479,7 @@ begin
       result := '';
     end;
   end;
-end; // .function GetSysDirW
+end;
 
 function GetFileAttrs (const Path: myWStr; {out} var Attrs: integer): boolean;
 const

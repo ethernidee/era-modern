@@ -28,6 +28,7 @@ uses
   Graph in 'Graph.pas',
   Lodman in 'Lodman.pas',
   PoTweak in 'PoTweak.pas',
+  ProcessApi in 'ProcessApi.pas',
   Rainbow in 'Rainbow.pas',
   Scripts in 'Scripts.pas',
   SndVid in 'SndVid.pas',

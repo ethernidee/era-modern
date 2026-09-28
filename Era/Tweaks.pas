@@ -97,7 +97,7 @@ function RandomRangeWithFreeParam (MinValue, MaxValue, FreeParam: integer): inte
 procedure ProcessUnhandledException (ExceptionRecord: Windows.PExceptionRecord; Context: Windows.PContext);
 
 (* Writes memory consumption info to main log file *)
-procedure LogMemoryState;
+procedure LogMemoryState; stdcall;
 
 
 (***) implementation (***)
@@ -988,7 +988,7 @@ begin
 
     // If we are network defender, the attacker already sent CombatId to us. Otherwise we should generate it and send later
     if not Heroes.GetPlayer(DefenderPlayerId).IsThisPcHumanPlayer then begin
-      CombatId := Erm.UniqueRng.Random;
+      CombatId := FastRand.Rng.Random;
     end;
   end else begin
     CombatId := DEFAULT_COMBAT_ID;
@@ -2021,6 +2021,27 @@ begin
   Context.RetAddr := Ptr($4F6D59);
 end; // .function Hook_Show3PicDlg_PrepareDialogStruct
 
+var
+  OldTime:    cardinal = 0;
+  TimePassed: cardinal = 0;
+
+function Hook_HandleRealTimeTimer (Context: ApiJack.PHookContext): longbool; stdcall;
+var
+  Time: cardinal;
+
+begin
+  result          := false;
+  Context.RetAddr := Ptr($4EDCCA);
+  Time            := cardinal(Heroes.GetTime());
+  TimePassed      := cardinal(Time - OldTime);
+
+  if TimePassed >= 60 then begin
+    OldTime         := Time;
+    TimePassed      := cardinal(TimePassed mod 60);
+    Context.RetAddr := Ptr($4EDCBB);
+  end;
+end;
+
 procedure DumpWinPeModuleList;
 const
   DEBUG_WINPE_MODULE_LIST_PATH = EraSettings.DEBUG_DIR + '\pe modules.txt';
@@ -2254,7 +2275,7 @@ begin
   {!} Debug.ModuleContext.Unlock;
 end; // .procedure DumpExceptionContext
 
-procedure LogMemoryState;
+procedure LogMemoryState; stdcall;
 var
 {U} MemoryConsumers:          DataLib.TStrList {of Ptr(AllocatedSize: integer)};
     MemoryInfo:               PsApi.PROCESS_MEMORY_COUNTERS;
@@ -2800,6 +2821,9 @@ begin
   PatchApi.p.WriteDataPatch(Ptr($4A61CC), [myAStr('E8')]);
   PatchApi.p.WriteDataPatch(Ptr($4A66AC), [myAStr('E8')]);
   PatchApi.p.WriteDataPatch(Ptr($4A795B), [myAStr('E8')]);
+
+  (* Fix wrong real timer handling, occuring when PC is active more than 23 days or 2147483 seconds *)
+  ApiJack.Hook(Ptr($4EDCAC), @Hook_HandleRealTimeTimer);
 end; // .procedure OnAfterWoG
 
 procedure OnLoadEraSettings (Event: GameExt.PEvent); stdcall;
@@ -2847,8 +2871,8 @@ begin
   ExceptionsCritSection.Init;
   Legacy.GetMem(OutOfMemoryReserve, OUT_OF_MEMORY_RESERVE_BYTES);
   OutOfMemoryVirtualReserve := Windows.VirtualAlloc(nil, OUT_OF_MEMORY_VIRTUAL_RESERVE_BYTES, Windows.MEM_RESERVE, Windows.PAGE_READWRITE);
-  CLangRng               := FastRand.TClangRng.Create(FastRand.GenerateSecureSeed);
-  QualitativeRng         := FastRand.TXoroshiro128Rng.Create(FastRand.GenerateSecureSeed);
+  CLangRng               := FastRand.TClangRng.Create(FastRand.MakeSecureSeedWithFallback);
+  QualitativeRng         := FastRand.TXoroshiro128Rng.Create(FastRand.MakeSecureSeedWithFallback);
   BattleDeterministicRng := TBattleDeterministicRng.Create(@CombatId, @CombatRound, @CombatActionId, @CombatRngFreeParam);
   GlobalRng              := QualitativeRng;
   Mp3TriggerHandledEvent := Windows.CreateEvent(nil, false, false, nil);

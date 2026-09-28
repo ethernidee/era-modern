@@ -7,8 +7,14 @@ unit EraUtils;
 (***)  interface  (***)
 
 uses
-  SysUtils, Math,
-  UtilsB2, Alg, StrLib, Legacy,
+  SysUtils,
+  Math,
+
+  UtilsB2,
+  Alg,
+  StrLib,
+  Legacy,
+
   Trans;
 
 
@@ -53,7 +59,7 @@ begin
     NumDelims   := (StrLen - 1 - ord(IsNegative)) div GROUP_LEN;
     FinalStrLen := StrLen + NumDelims;
     SetLength(result, FinalStrLen);
-    
+
     j := FinalStrLen;
 
     for i := 0 to StrLen - 1 - ord(IsNegative) do begin
@@ -64,7 +70,7 @@ begin
 
       result[j] := result[StrLen - i];
       Dec(j);
-    end;    
+    end;
   end; // .if
 end; // .function DecorateInt
 

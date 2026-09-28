@@ -38,6 +38,7 @@ uses
   Lodman,
   Memory,
   Network,
+  ProcessApi,
   Rainbow,
   Stores,
   Trans,
@@ -301,6 +302,21 @@ end;
 function SetLanguage (NewLanguage: myPChar): TInt32Bool; stdcall;
 begin
   result := ord(Trans.SetLanguage(NewLanguage));
+end;
+
+function GetLanguage: {O} myPChar; stdcall;
+begin
+  result := Externalize(Trans.GetLanguage);
+end;
+
+function SetCodePage (NewCodePage: cardinal): TInt32Bool; stdcall;
+begin
+  result := ord(Trans.SetCodePage(NewCodePage));
+end;
+
+function GetCodePage: cardinal; stdcall;
+begin
+  result := cardinal(Trans.GetCodePage);
 end;
 
 function LoadImageAsPcx16 (FilePath, PcxName: myPChar; Width, Height, MaxWidth, MaxHeight, ResizeAlg: integer): {OU} Heroes.PPcx16Item; stdcall;
@@ -715,27 +731,10 @@ begin
   result := Length(Str);
 end;
 
-var
-  (* Global unique process GUID, generated on demand *)
-  ProcessGuid: myAStr;
-
 (* Returns 32-character unique key for current game process. The ID will be unique between multiple game runs. *)
 function GetProcessGuid: myPChar; stdcall;
-var
-  ProcessGuidBuf: array [0..sizeof(GameExt.ProcessStartTime) - 1] of byte;
-
 begin
-  if ProcessGuid = '' then begin
-    Legacy.FillChar(ProcessGuidBuf, sizeof(ProcessGuidBuf), #0);
-
-    if not WinUtils.RtlGenRandom(@ProcessGuidBuf, sizeof(ProcessGuidBuf)) then begin
-      UtilsB2.CopyMem(sizeof(GameExt.ProcessStartTime), @GameExt.ProcessStartTime, @ProcessGuidBuf);
-    end;
-
-    ProcessGuid := StrLib.BinToHex(sizeof(ProcessGuidBuf), @ProcessGuidBuf);
-  end;
-
-  result := myPChar(ProcessGuid);
+  result := myPChar(ProcessApi.GetCurrentProcessGuid());
 end;
 
 function IsCampaign: TInt32Bool; stdcall;
@@ -883,6 +882,11 @@ begin
   result := ord(Log.Write(EventSource, Operation, Description));
 end;
 
+function RestartCurrentProcess: TInt32Bool; stdcall;
+begin
+  result := ord(ProcessApi.RestartCurrentProcess);
+end;
+
 function CreatePlugin (Name: myPChar) : {On} TPlugin; stdcall;
 var
   PluginName: myAStr;
@@ -992,8 +996,10 @@ exports
   GetButtonID,
   GetCampaignFileName,
   GetCampaignMapInd,
+  GetCodePage,
   GetEraRegistryIntValue,
   GetEraRegistryStrValue,
+  GetLanguage,
   GetMapFileName,
   GetProcessGuid,
   GetRetXVars,
@@ -1012,6 +1018,7 @@ exports
   IsPatchOverwritten,
   LoadImageAsPcx16,
   LogMemoryState,
+  SetCodePage,
   MemFree,
   Memory.ClientMemAlloc name '_ClientMemAlloc',
   Memory.ClientMemFree name '_ClientMemFree',
@@ -1031,6 +1038,7 @@ exports
   RegisterHandler,
   RegisterMemoryConsumer,
   ReportPluginVersion,
+  RestartCurrentProcess,
   RollbackAppliedPatch,
   SaveIni,
   SetAssocVarIntValue,

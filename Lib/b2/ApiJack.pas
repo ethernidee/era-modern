@@ -198,14 +198,15 @@ class procedure CodeMemoryManager.Alloc (var Addr: pointer; Size: integer);
 begin
   {!} Assert(@Addr <> nil);
   {!} Assert(Size >= 0);
-  Legacy.GetMem(Addr, Size);
-  // TODO: unsure, that FastMM returns blocks with PAGE_EXECUTE_READWRITE attribute to not trigger DEP
+  Legacy.GetMem(Addr, Size); // TODO FIXME: use memory manager with PAGE_EXECUTE_READWRITE attribute
 end;
 
 class procedure CodeMemoryManager.FreeAndNil (var {n} Addr: pointer);
 begin
   {!} Assert(@Addr <> nil);
-  Legacy.FreeMem(Addr);
+
+  Legacy.FreeMem(Addr); // TODO FIXME: use memory manager with PAGE_EXECUTE_READWRITE attribute
+
   Addr := nil;
 end;
 

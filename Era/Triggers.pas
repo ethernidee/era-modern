@@ -630,6 +630,7 @@ end;
 procedure Splice_ExecuteManager (OrigFunc: pointer; This: pointer); stdcall;
 var
   ExceptionRegistration: TDelphiExceptionRegistration;
+  {Un} BeforeFastQuitToGameMenuEvent: EventLib.TOnBeforeFastQuitToGameMenuEvent;
   Left:                  boolean;
   ShouldFastQuit:        boolean;
 
@@ -675,8 +676,12 @@ begin
     Leave;
   except
     if (ExceptionRecord.ExceptionCode = EXCEPTION_CODE_ERA) and (ExceptionArgs[0] = EXCEPTION_ERA_FAST_QUIT_TO_GAME_MENU) then begin
+      BeforeFastQuitToGameMenuEvent.TargetScreen := ExceptionArgs[1];
+
+      EventMan.GetInstance.Fire('$OnBeforeFastQuitToGameMenu', @BeforeFastQuitToGameMenuEvent, sizeof(EventLib.TOnBeforeFastQuitToGameMenuEvent));
+
       Erm.PerformCleanupOnExceptions := false;
-      Heroes.MainMenuTarget^         := ExceptionArgs[1];
+      Heroes.MainMenuTarget^         := BeforeFastQuitToGameMenuEvent.TargetScreen;
       ShouldFastQuit                 := not Leave;
     end else begin
       Tweaks.ProcessUnhandledException(ExceptionRecord, ExceptionContext);
@@ -893,7 +898,7 @@ var
 
 begin
   StackInd     := Heroes.GetVal(Ptr(Context.ECX), STACK_SIDE).v * Heroes.NUM_BATTLE_STACKS_PER_SIDE + Heroes.GetVal(Ptr(Context.ECX), STACK_IND).v;
-  Erm.FireErmEventEx(Erm.TRIGGER_REGENERATE_PHASE, [StackInd, Context.ECX, 0]);
+  Erm.FireErmEventEx(Erm.TRIGGER_REGENERATE_PHASE, [StackInd, Context.ECX, Context.ECX]);
   DisableRegen := Erm.RetXVars[PARAM_DISABLE_REGEN] <> 0;
   result       := true;
 end;
@@ -950,7 +955,7 @@ end;
 
 function Hook_BattleDoRegenerate (Context: ApiJack.PHookContext): longbool; stdcall;
 const
-  EXIT_ADDR              = $446E21;
+  EXIT_ADDR              = $446E24;
   PROCESS_ANIMATION_ADDR = $446C3F;
 
 var

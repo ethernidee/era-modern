@@ -43,6 +43,9 @@ const
 
 
 function SetLanguage (const NewLanguage: myAStr): boolean;
+function GetLanguage: myAStr;
+function SetCodePage (NewCodePage: integer): boolean;
+function GetCodePage: integer;
 procedure ReloadLanguageData; stdcall;
 function tr (const Key: myAStr; const Params: array of myAStr): myAStr;
 function trDef (const Key: myAStr; const Params: array of myAStr; const DefValue: myAStr): myAStr;
@@ -66,6 +69,8 @@ var
 {O} LangDict:         TLangDict;
 {O} MapLangResources: RscLists.TResourceList;
     CurrentLanguage:  myAStr = 'en';
+    CurrentCodePage:  integer;
+    SystemCodePage:   integer;
 
 
 const
@@ -95,6 +100,25 @@ begin
   end;
 
   CurrentLanguage := NewLanguage;
+end;
+
+function GetLanguage: myAStr;
+begin
+  result := CurrentLanguage;
+end;
+
+function SetCodePage (NewCodePage: integer): boolean;
+begin
+  result := Windows.IsValidCodePage(cardinal(NewCodePage));
+
+  if result then begin
+    CurrentCodePage := NewCodePage;
+  end;
+end;
+
+function GetCodePage: integer;
+begin
+  result := CurrentCodePage;
 end;
 
 function tr (const Key: myAStr; const Params: array of myAStr): myAStr;
@@ -204,7 +228,11 @@ var
         ProcessBox(Json.TlkJSONcustomlist(Value), Key + '.');
       end else if (ValueType <> Json.jsNull) and (OverrideExistingKeys or (LangDict[Key] = nil)) then begin
         if ValueType = Json.jsString then begin
-          LangDict[Key] := TString.Create(Box.GetString(i));
+          if CurrentCodePage = SystemCodePage then begin
+            LangDict[Key] := TString.Create(Box.GetString(i));
+          end else begin
+            LangDict[Key] := TString.Create(StrLib.WideToAnsiSubstitute(Box.GetWideString(i), CurrentCodePage));
+          end;
         end else if ValueType = Json.jsNumber then begin
           LangDict[Key] := TString.Create(Legacy.FloatToStr(Box.GetDouble(i)));
         end else if ValueType = Json.jsBoolean then begin
@@ -314,9 +342,10 @@ end;
 procedure OnLoadEraSettings (Event: GameExt.PEvent); stdcall;
 begin
   SetLanguage(EraSettings.GetOpt('Language').Str('en'));
+  SetCodePage(EraSettings.GetOpt('CodePage').Int(SystemCodePage));
 end;
 
-procedure OnAfterWoG (Event: GameExt.PEvent); stdcall;
+procedure OnBeforeLoadEraPlugins (Event: GameExt.PEvent); stdcall;
 begin
   LoadGlobalLangFiles;
 end;
@@ -380,10 +409,12 @@ begin
 end;
 
 begin
+  SystemCodePage   := Windows.GetACP;
+  CurrentCodePage  := SystemCodePage;
   LangDict         := DataLib.NewDict(UtilsB2.OWNS_ITEMS, DataLib.CASE_SENSITIVE);
   MapLangResources := RscLists.TResourceList.Create;
   EventMan.GetInstance.On('$OnLoadEraSettings', OnLoadEraSettings);
-  EventMan.GetInstance.On('OnAfterWoG', OnAfterWoG);
+  EventMan.GetInstance.On('$OnBeforeLoadEraPlugins', OnBeforeLoadEraPlugins);
   EventMan.GetInstance.On('OnBeforeScriptsReload', OnBeforeScriptsReload);
   EventMan.GetInstance.On('OnGenerateDebugInfo', OnGenerateDebugInfo);
   EventMan.GetInstance.On('$OnEraMapStart', OnEraMapStart);

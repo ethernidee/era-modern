@@ -15,10 +15,11 @@ uses
   DlgMes,
   EventMan,
   Files,
-  GameExt,
   KubaZip,
   StrLib,
-  UtilsB2, Legacy; {$WARN SYMBOL_PLATFORM OFF}
+  UtilsB2, Legacy,
+
+  GameExt; {$WARN SYMBOL_PLATFORM OFF}
 
 const
   ZIP_PATH_PREFIX           = 'zip:\';

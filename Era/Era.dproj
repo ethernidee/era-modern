@@ -99,6 +99,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Graph.pas"/>
         <DCCReference Include="Lodman.pas"/>
         <DCCReference Include="PoTweak.pas"/>
+        <DCCReference Include="ProcessApi.pas"/>
         <DCCReference Include="Rainbow.pas"/>
         <DCCReference Include="Scripts.pas"/>
         <DCCReference Include="SndVid.pas"/>

@@ -12,7 +12,7 @@ Duplicate arguments override the previous ones.
 *)
 
 (***)  interface  (***)
-uses Windows, SysUtils, UtilsB2, TypeWrappers, Crypto, TextScan, AssocArrays, Lists, Legacy; {$WARN SYMBOL_PLATFORM OFF}
+uses Windows, SysUtils, UtilsB2, TypeWrappers, Crypto, TextScan, AssocArrays, Legacy; {$WARN SYMBOL_PLATFORM OFF}
 
 const
   (* RunProcess *)
@@ -27,13 +27,13 @@ type
 function  ArgExists (const ArgName: myAStr): boolean;
 function  GetArg (const ArgName: myAStr): myAStr;
 procedure SetArg (const ArgName, NewArgValue: myAStr);
-function  RunProcess (const ExeFilePath, ExeArgs, ExeCurrentDir: myAStr; WaitEnd: boolean): boolean;
+
+(* If ProcessInfo address is passed, hProcess and hThread handles are not closed automatically *)
+function  RunProcess (const ExeFilePath, ExeArgs, ExeCurrentDir: myAStr; WaitEnd: boolean; {n} ProcessInfo: Windows.PProcessInformation = nil): boolean;
 
 
 var
-{O} Args:     {O} AssocArrays.TAssocArray {OF TString};
-{O} ArgsList: Lists.TStringList;
-    AppPath:  myAStr;
+{O} Args: {O} AssocArrays.TAssocArray {of TString};
 
 
 (***)  implementation  (***)
@@ -49,91 +49,58 @@ var
 {U} ArgValue: TString;
 
 begin
-  ArgValue  :=  Args[ArgName];
+  ArgValue := Args[ArgName];
   // * * * * * //
   if ArgValue <> nil then begin
-    result  :=  ArgValue.Value;
+    result := ArgValue.Value;
   end else begin
-    result  :=  '';
+    result := '';
   end;
-end; // .function GetArg
+end;
 
 procedure SetArg (const ArgName, NewArgValue: myAStr);
 var
 {U} ArgValue: TString;
-  
+
 begin
-  ArgValue  :=  Args[ArgName];
+  ArgValue := Args[ArgName];
   // * * * * * //
   if ArgValue <> nil then begin
-    ArgValue.Value  :=  NewArgValue;
+    ArgValue.Value := NewArgValue;
   end else begin
-    Args[ArgName] :=  TString.Create(NewArgValue);
+    Args[ArgName] := TString.Create(NewArgValue);
   end;
-end; // .procedure SetArg
+end;
 
 procedure ProcessArgs;
-const
-  BLANKS    = [#0..#32];
-  ARGDELIM  = BLANKS + ['='];
-
 var
 {O} Scanner:  TextScan.TTextScanner;
-    CmdLine:  myAStr;
+    Arg:      myAStr;
     ArgName:  myAStr;
     ArgValue: myAStr;
-    SavedPos: integer;
-    c:        myChar;
-
-  function ReadToken (const ArgDelimCharset: UtilsB2.TCharSet): myAStr;
-  begin
-    {!} Assert(Scanner.GetCurrChar(c));
-    
-    if c = '"' then begin
-      Scanner.GotoNextChar;
-      Scanner.ReadTokenTillDelim(['"'], result);
-      Scanner.GotoNextChar;
-    end else begin
-      Scanner.ReadTokenTillDelim(ArgDelimCharset, result);
-    end;
-  end; // .function ReadToken
+    i:        integer;
 
 begin
-  Scanner :=  TextScan.TTextScanner.Create;
+  Scanner := TextScan.TTextScanner.Create;
   // * * * * * //
-  CmdLine  := myAStr(System.CmdLine);
-  Args     := AssocArrays.NewStrictAssocArr(TString);
-  ArgsList := Lists.NewSimpleStrList;
-  Scanner.Connect(CmdLine, #10);
-  
-  if Scanner.SkipCharset(BLANKS) then begin
-    AppPath :=  ReadToken(BLANKS);
-  end;
-  
-  while Scanner.SkipCharset(BLANKS) do begin
-    SavedPos := Scanner.Pos;
-    ArgsList.Add(ReadToken(BLANKS));
-    Scanner.GotoPos(SavedPos);
-    ArgName := ReadToken(ARGDELIM);
-    
-    if Scanner.GetCurrChar(c) then begin
-      if c = '=' then begin
-        Scanner.GotoNextChar;
-        ArgValue := ReadToken(BLANKS);
-      end else begin
-        ArgValue := '1';
-      end;
-    end else begin
-      ArgValue := '1';
+  for i := 1 to ParamCount do begin
+    Arg := myAStr(ParamStr(i));
+    Scanner.Connect(Arg, #0);
+
+    Scanner.ReadTokenTillDelim(['='], ArgName);
+    ArgValue := '';
+
+    if (Scanner.c = '=') and Scanner.GotoNextChar then begin
+      Scanner.ReadTokenTillDelim([], ArgValue);
     end;
-    
-    Args[ArgName] := TString.Create(ArgValue);
-  end; // .while
+
+    SetArg(ArgName, ArgValue);
+  end;
   // * * * * * //
   Legacy.FreeAndNil(Scanner);
-end; // .procedure ProcessArgs
+end;
 
-function RunProcess (const ExeFilePath, ExeArgs, ExeCurrentDir: myAStr; WaitEnd: boolean): boolean;
+function RunProcess (const ExeFilePath, ExeArgs, ExeCurrentDir: myAStr; WaitEnd: boolean; {n} ProcessInfo: Windows.PProcessInformation = nil): boolean;
 const
   NO_APPLICATION_NAME        = nil;
   DEFAULT_PROCESS_ATTRIBUTES = nil;
@@ -143,9 +110,9 @@ const
   INHERIT_ENVIROMENT         = nil;
 
 var
-  StartupInfo:  Windows.TStartupInfoA;
-  ProcessInfo:  Windows.TProcessInformation;
-  
+  StartupInfo:    Windows.TStartupInfoA;
+  ProcessInfoRec: Windows.TProcessInformation;
+
 begin
   Legacy.FillChar(StartupInfo, sizeof(StartupInfo), #0);
   StartupInfo.cb  :=  sizeof(StartupInfo);
@@ -160,14 +127,22 @@ begin
     INHERIT_ENVIROMENT,
     pointer(ExeCurrentDir),
     StartupInfo,
-    ProcessInfo
+    ProcessInfoRec
   );
-  
+
+  if ProcessInfo <> nil then begin
+    ProcessInfo^ := ProcessInfoRec;
+  end else begin
+    Windows.CloseHandle(ProcessInfoRec.hProcess);
+    Windows.CloseHandle(ProcessInfoRec.hThread);
+  end;
+
   if result and WaitEnd then begin
-    Windows.WaitForSingleObject(ProcessInfo.hProcess, Windows.INFINITE);
+    Windows.WaitForSingleObject(ProcessInfoRec.hProcess, Windows.INFINITE);
   end;
 end; // .function RunProcess
 
 begin
+  Args := AssocArrays.NewStrictAssocArr(TString);
   ProcessArgs;
 end.
